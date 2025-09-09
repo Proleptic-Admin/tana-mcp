@@ -270,3 +270,172 @@ To migrate existing MCP tools to use schemas:
 5. **Update Clients**: Switch from manual tools to generated ones
 
 The schema system works alongside existing tools, so you can migrate gradually.
+
+## Frequently Asked Questions
+
+### Q: How do I find my Tana supertag and field IDs?
+
+**A:** Use Tana's "Show API schema" feature:
+1. Right-click on any supertag in Tana
+2. Select "Show API schema"
+3. Copy the `id` values from the JSON response
+4. Add them to your configuration mappings
+
+### Q: Can I use schemas with existing tools?
+
+**A:** Yes! The schema system works alongside existing tools. You can:
+- Use schema-generated tools for new workflows
+- Keep using manual tools for edge cases
+- Migrate gradually as you add more schemas
+
+### Q: What happens if I change a schema after creating tools?
+
+**A:** The system regenerates tools automatically when schemas change. However:
+- Restart your MCP server to see changes
+- Existing nodes in Tana are not affected
+- Tool parameters may change, so update your MCP client usage
+
+### Q: How do I handle complex validation rules?
+
+**A:** Use the validation options in field definitions:
+```json
+{
+  "validation": {
+    "pattern": "^[A-Z][a-z]+$",     // Regex pattern
+    "min": 1, "max": 100,           // Length/number range  
+    "options": ["opt1", "opt2"],    // Enum values
+    "required": true                // Required field
+  }
+}
+```
+
+### Q: Can I create tools for multiple related entities?
+
+**A:** Yes! Create multiple schemas and they'll all generate tools:
+```json
+{
+  "schemas": [
+    {"name": "Task", "id": "task-schema"},
+    {"name": "Person", "id": "person-schema"},
+    {"name": "Project", "id": "project-schema"}
+  ]
+}
+```
+This creates `create_task`, `create_person`, and `create_project` tools.
+
+### Q: How do I troubleshoot schema configuration issues?
+
+**A:** Follow this debugging process:
+1. Check JSON syntax with `cat config.json | python -m json.tool`
+2. Verify supertag IDs exist in your Tana workspace
+3. Test with basic `create_plain_node` first
+4. Check the [Troubleshooting Guide](./TROUBLESHOOTING.md)
+5. Use `get_config` and `get_schemas` tools to inspect current state
+
+### Q: Can I use the same field in multiple schemas?
+
+**A:** Yes! Define the field mapping once, then reference it in multiple schemas:
+```json
+{
+  "mappings": {
+    "fields": {
+      "due_date": "due-date-field-id-123"
+    }
+  },
+  "schemas": [
+    {
+      "name": "Task",
+      "fields": [{"id": "due-date-field-id-123", "name": "due_date"}]
+    },
+    {
+      "name": "Event", 
+      "fields": [{"id": "due-date-field-id-123", "name": "due_date"}]
+    }
+  ]
+}
+```
+
+### Q: How do I handle optional vs required fields?
+
+**A:** Set the `required` property in field definitions:
+```json
+{
+  "fields": [
+    {
+      "name": "title",
+      "required": true     // Must be provided
+    },
+    {
+      "name": "description", 
+      "required": false    // Optional
+    }
+  ]
+}
+```
+
+### Q: Can I set default values for fields?
+
+**A:** Yes, use the `defaultValue` property:
+```json
+{
+  "name": "priority",
+  "type": "text",
+  "defaultValue": "medium",
+  "validation": {
+    "options": ["low", "medium", "high"]
+  }
+}
+```
+
+### Q: How do I create references between schemas?
+
+**A:** Use the `reference` field type:
+```json
+{
+  "name": "assignee",
+  "type": "reference",
+  "description": "Reference to a Person node"
+}
+```
+Then provide a node ID when creating:
+```javascript
+create_task({
+  title: "Review budget",
+  assignee: "person-node-id-123"
+})
+```
+
+### Q: Is there a limit to how many schemas I can create?
+
+**A:** No hard limit, but practical considerations:
+- Each schema generates 1-2 MCP tools
+- More schemas = larger configuration files
+- Complex schemas take more time to validate
+- Recommend starting with 3-5 core schemas
+
+### Q: How do I handle schema versioning?
+
+**A:** Currently, use these practices:
+- Keep a backup of working configurations
+- Test schema changes in a development environment first
+- Use descriptive schema IDs that can evolve (e.g., "task-v1", "task-v2")
+- The system loads the latest configuration on restart
+
+### Q: Can I share schemas between teams?
+
+**A:** Yes! Share your `tana-schema-config.json` file, but:
+- Each team needs their own supertag/field ID mappings
+- Use the `update_mappings` tool to adapt to different workspaces
+- Consider using a template configuration with placeholder IDs
+
+### Q: How do I back up my schema configuration?
+
+**A:** Your schemas are stored in `tana-schema-config.json`:
+```bash
+# Back up your configuration
+cp tana-schema-config.json tana-schema-config.backup.json
+
+# Or version control it
+git add tana-schema-config.json
+git commit -m "Add schema configuration"
+```

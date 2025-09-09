@@ -10,7 +10,40 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that c
 
 This MCP server provides comprehensive access to Tana's Input API with:
 
-### 🛠️ Tools (15+ available)
+### 🎯 **Schema-Aware Smart Capture** (NEW!)
+Transform your Tana workflow from manual ID management to human-readable, type-safe tools:
+
+```javascript
+// ❌ Before: Manual ID management
+create_plain_node({
+  name: "Review budget",
+  supertags: [{ 
+    id: "task-supertag-id-123",
+    fields: {
+      "priority-field-id-222": "high",
+      "due-date-field-id-111": "2024-01-31"
+    }
+  }]
+})
+
+// ✅ After: Schema-based approach  
+create_task({
+  title: "Review budget",
+  priority: "high",
+  due_date: "2024-01-31"
+})
+```
+
+**Key Benefits:**
+- **🏷️ Human-readable names**: Use "priority" instead of "field-id-abc123"
+- **✅ Automatic validation**: Dates, URLs, enums validated automatically
+- **🛡️ Type safety**: Input validation prevents API errors
+- **🔄 Dynamic tools**: Define schemas once, get typed tools instantly
+- **💬 Conversational prompts**: Natural language interaction with your schemas
+
+**👉 [Get started in 5 minutes](./QUICK-START.md) | [Full schema guide](./SCHEMA-GUIDE.md)**
+
+### 🛠️ Core Tools (15+ available)
 - **create_plain_node**: Create basic text nodes with optional supertags
 - **create_reference_node**: Create nodes that reference existing nodes
 - **create_date_node**: Create date nodes with ISO 8601 formatted dates
@@ -149,6 +182,29 @@ For other MCP-compatible clients, use:
 
 Once configured, you can interact with Tana through your MCP client:
 
+### 🎯 Schema-Aware Examples (Recommended)
+
+After setting up schemas ([Quick Start Guide](./QUICK-START.md)):
+
+```
+Create a task "Review Q4 budget" with high priority due next Friday
+```
+→ Uses `create_task` tool with validation and proper field mapping
+
+```
+Create a person named "John Doe" with email john@company.com
+```
+→ Uses `create_person` tool with email validation
+
+```
+Use the create-task prompt to plan my week
+```
+→ Interactive conversation for task creation
+
+### 📝 Basic Examples
+
+For direct tool usage:
+
 ### Creating a Simple Node
 ```
 Create a new node titled "Project Ideas" in my Tana workspace
@@ -180,12 +236,21 @@ MCP clients that support prompts can use templates like:
 
 ## Documentation
 
-- **[API Reference](./API.md)**: Comprehensive documentation of all 11 tools, 4 prompts, and 4 resources
-- **[Developer Guide](./DEVELOPMENT.md)**: Architecture, setup, and contribution guidelines
-- **[Contributing Guide](./CONTRIBUTING.md)**: How to contribute code, documentation, and bug reports
-- **[Architecture Overview](./ARCHITECTURE.md)**: System design and component interactions
-- **[Examples](./examples/)**: Usage examples and common patterns
-- **[Changelog](./CHANGELOG.md)**: Version history and release notes
+### 📖 User Guides
+- **[🚀 Quick Start Guide](./QUICK-START.md)**: Get schema-aware functionality working in 5 minutes
+- **[📋 Schema Guide](./SCHEMA-GUIDE.md)**: Complete guide to schema-aware functionality
+- **[🔧 Troubleshooting](./TROUBLESHOOTING.md)**: Solutions for common issues and problems
+- **[📚 API Reference](./API.md)**: Comprehensive documentation of all tools, prompts, and resources
+
+### 👨‍💻 Developer Resources  
+- **[🛠️ Developer Guide](./DEVELOPER-GUIDE.md)**: Extend and contribute to schema functionality
+- **[🏗️ Development Setup](./DEVELOPMENT.md)**: Architecture, setup, and contribution guidelines
+- **[🤝 Contributing Guide](./CONTRIBUTING.md)**: How to contribute code, documentation, and bug reports
+- **[🏛️ Architecture Overview](./ARCHITECTURE.md)**: System design and component interactions
+
+### 💡 Examples & References
+- **[📁 Examples](./examples/)**: Usage examples and common patterns
+- **[📄 Changelog](./CHANGELOG.md)**: Version history and release notes
 
 ## Development
 
