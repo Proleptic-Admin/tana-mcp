@@ -7,6 +7,9 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { TanaClient } from './tana-client';
+import { SchemaManager } from './schema-manager';
+import { InputValidator } from './input-validator';
+import { SchemaToolGenerator } from './schema-tool-generator';
 import {
   TanaBooleanNode,
   TanaDateNode,
@@ -16,6 +19,7 @@ import {
   TanaSupertag,
   TanaUrlNode
 } from '../types/tana-api';
+import { SchemaConfig, SupertagSchema } from '../types/schema-config';
 
 // Define Zod schemas for validating inputs
 const SupertagSchema = z.object({
@@ -46,13 +50,30 @@ const NodeSchema = z.lazy(() =>
 export class TanaMcpServer {
   private readonly server: McpServer;
   private readonly tanaClient: TanaClient;
+  private readonly schemaManager: SchemaManager;
+  private readonly inputValidator: InputValidator;
+  private readonly schemaToolGenerator: SchemaToolGenerator;
+  private toolsRegistered = false;
 
-  constructor(apiToken: string, endpoint?: string) {
+  constructor(apiToken: string, endpoint?: string, configPath?: string) {
     // Create the Tana client
     this.tanaClient = new TanaClient({
       apiToken,
       endpoint
     });
+
+    // Create schema manager
+    this.schemaManager = new SchemaManager(configPath);
+
+    // Create input validator (will be initialized from config)
+    this.inputValidator = new InputValidator();
+
+    // Create schema tool generator
+    this.schemaToolGenerator = new SchemaToolGenerator(
+      this.schemaManager,
+      this.tanaClient,
+      this.inputValidator
+    );
 
     // Create the MCP server with proper capabilities
     this.server = new McpServer({
@@ -60,20 +81,61 @@ export class TanaMcpServer {
       version: '1.2.0'
     });
 
-    // Register tools
-    this.registerTools();
+    // Don't initialize here - wait for start()
+  }
 
-    // Register prompts
-    this.registerPrompts();
+  /**
+   * Initialize the server with schema-based configuration
+   */
+  private async initializeServer(): Promise<void> {
+    try {
+      // Load schema configuration
+      const config = await this.schemaManager.loadConfig();
+      
+      // Update input validator with config settings
+      Object.assign(this.inputValidator, InputValidator.fromConfig(config));
 
-    // Register resources
-    this.registerResources();
+      // Register standard tools
+      this.registerTools();
+
+      // Register standard prompts
+      this.registerPrompts();
+
+      // Register resources
+      this.registerResources();
+
+      // Generate and register schema-based tools (only for new schemas)
+      await this.schemaToolGenerator.generateAndRegisterTools(this.server, {
+        prefix: 'create_',
+        includePrompts: false, // Avoid prompt conflicts
+        validateInputs: true,
+        normalizeInputs: true
+      });
+
+      // Add schema management tools
+      this.registerSchemaManagementTools();
+
+    } catch (error) {
+      // If initialization fails, continue with standard tools only
+      console.error('Warning: Schema initialization failed, using standard tools only:', error);
+      
+      // Only register standard tools if not already registered
+      if (!this.toolsRegistered) {
+        this.registerTools();
+        this.registerPrompts();
+        this.registerResources();
+        this.toolsRegistered = true;
+      }
+    }
   }
 
   /**
    * Start the MCP server
    */
   async start(): Promise<void> {
+    // Initialize the server first
+    await this.initializeServer();
+
     // Create the transport
     const transport = new StdioServerTransport();
 
@@ -957,6 +1019,184 @@ For detailed API documentation, see the 'api-docs' resource.
 For examples, see the 'examples' resource.`
         }]
       })
+    );
+  }
+
+  /**
+   * Register schema management tools
+   */
+  private registerSchemaManagementTools(): void {
+    // Add schema tool
+    this.server.tool(
+      'add_schema',
+      'Add a new supertag schema to generate typed tools. Provide the complete schema definition including fields and validation rules.',
+      {
+        schema: z.object({
+          id: z.string(),
+          name: z.string(),
+          description: z.string().optional(),
+          fields: z.array(z.object({
+            id: z.string(),
+            name: z.string(),
+            type: z.enum(['text', 'date', 'url', 'boolean', 'number', 'reference']),
+            required: z.boolean().optional(),
+            description: z.string().optional(),
+            defaultValue: z.string().optional(),
+            validation: z.object({
+              pattern: z.string().optional(),
+              min: z.number().optional(),
+              max: z.number().optional(),
+              options: z.array(z.string()).optional()
+            }).optional()
+          })),
+          toolDescription: z.string().optional(),
+          examples: z.array(z.object({
+            title: z.string(),
+            description: z.string(),
+            input: z.record(z.any())
+          })).optional()
+        })
+      },
+      async ({ schema }: { schema: any }) => {
+        try {
+          await this.schemaManager.addSchema(schema);
+          
+          // Regenerate tools after adding schema
+          await this.schemaToolGenerator.generateAndRegisterTools(this.server, {
+            prefix: 'create_',
+            includePrompts: true,
+            validateInputs: true,
+            normalizeInputs: true
+          });
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Schema '${schema.name}' added successfully. Generated tool: create_${schema.name.toLowerCase().replace(/\s+/g, '_')}`
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error adding schema: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
+    );
+
+    // Update mappings tool
+    this.server.tool(
+      'update_mappings',
+      'Update name→ID mappings for supertags and fields. Use this to map human-readable names to Tana workspace IDs.',
+      {
+        supertags: z.record(z.string()).optional(),
+        fields: z.record(z.string()).optional()
+      },
+      async ({ supertags, fields }: { supertags?: Record<string, string>; fields?: Record<string, string> }) => {
+        try {
+          await this.schemaManager.updateMappings({ supertags, fields });
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: 'Name→ID mappings updated successfully'
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error updating mappings: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
+    );
+
+    // Get schemas tool
+    this.server.tool(
+      'get_schemas',
+      'Get all configured schemas and their generated tools',
+      {},
+      async () => {
+        try {
+          const schemas = await this.schemaManager.getSchemas();
+          const generatedTools = this.schemaManager.getGeneratedToolsMeta();
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  schemas,
+                  generatedTools: generatedTools.map(tool => ({
+                    toolName: tool.toolName,
+                    schemaName: tool.schema.name,
+                    generatedAt: tool.generatedAt
+                  }))
+                }, null, 2)
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error getting schemas: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
+    );
+
+    // Get configuration tool
+    this.server.tool(
+      'get_config',
+      'Get the current schema configuration including mappings and validation settings',
+      {},
+      async () => {
+        try {
+          const config = await this.schemaManager.getConfig();
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(config, null, 2)
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error getting configuration: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
     );
   }
 

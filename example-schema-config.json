@@ -1,0 +1,156 @@
+{
+  "version": "1.0.0",
+  "workspace": {
+    "name": "Example Workspace"
+  },
+  "mappings": {
+    "supertags": {
+      "Task": "task-supertag-id-123",
+      "Person": "person-supertag-id-456",
+      "Meeting": "meeting-supertag-id-789"
+    },
+    "fields": {
+      "due_date": "due-date-field-id-111",
+      "priority": "priority-field-id-222",
+      "assignee": "assignee-field-id-333",
+      "status": "status-field-id-444",
+      "email": "email-field-id-555",
+      "phone": "phone-field-id-666"
+    }
+  },
+  "schemas": [
+    {
+      "id": "task-schema",
+      "name": "Task",
+      "description": "A task or todo item with priority and due date",
+      "toolDescription": "Create a task with priority, due date, and assignee",
+      "fields": [
+        {
+          "id": "title-field",
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "description": "The task title",
+          "validation": {
+            "min": 1,
+            "max": 200
+          }
+        },
+        {
+          "id": "description-field",
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "description": "Detailed task description"
+        },
+        {
+          "id": "due-date-field-id-111",
+          "name": "due_date",
+          "type": "date",
+          "required": false,
+          "description": "When the task is due"
+        },
+        {
+          "id": "priority-field-id-222",
+          "name": "priority",
+          "type": "text",
+          "required": false,
+          "description": "Task priority level",
+          "defaultValue": "medium",
+          "validation": {
+            "options": ["low", "medium", "high", "critical"]
+          }
+        },
+        {
+          "id": "assignee-field-id-333",
+          "name": "assignee",
+          "type": "reference",
+          "required": false,
+          "description": "Person assigned to the task"
+        },
+        {
+          "id": "status-field-id-444",
+          "name": "status",
+          "type": "text",
+          "required": false,
+          "description": "Current task status",
+          "defaultValue": "todo",
+          "validation": {
+            "options": ["todo", "in_progress", "done", "blocked"]
+          }
+        }
+      ],
+      "examples": [
+        {
+          "title": "Simple task",
+          "description": "Create a basic task",
+          "input": {
+            "title": "Review quarterly report",
+            "priority": "high",
+            "due_date": "2024-01-31"
+          }
+        }
+      ]
+    },
+    {
+      "id": "person-schema",
+      "name": "Person",
+      "description": "A person contact with email and phone",
+      "toolDescription": "Create a person contact with email and phone information",
+      "fields": [
+        {
+          "id": "name-field",
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "description": "Person's full name",
+          "validation": {
+            "min": 2,
+            "max": 100
+          }
+        },
+        {
+          "id": "email-field-id-555",
+          "name": "email",
+          "type": "text",
+          "required": false,
+          "description": "Email address",
+          "validation": {
+            "pattern": "^[^@]+@[^@]+\\.[^@]+$"
+          }
+        },
+        {
+          "id": "phone-field-id-666",
+          "name": "phone",
+          "type": "text",
+          "required": false,
+          "description": "Phone number"
+        },
+        {
+          "id": "company-field",
+          "name": "company",
+          "type": "text",
+          "required": false,
+          "description": "Company or organization"
+        }
+      ],
+      "examples": [
+        {
+          "title": "Add contact",
+          "description": "Add a new person to contacts",
+          "input": {
+            "name": "John Doe",
+            "email": "john.doe@example.com",
+            "phone": "+1-555-123-4567",
+            "company": "Acme Corp"
+          }
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "strictMode": false,
+    "dateFormat": "iso",
+    "urlRequireProtocol": true
+  }
+}
