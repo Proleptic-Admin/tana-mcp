@@ -10,7 +10,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that c
 
 This MCP server provides comprehensive access to Tana's Input API with:
 
-### 🛠️ Tools (11 available)
+### 🛠️ Tools (15+ available)
 - **create_plain_node**: Create basic text nodes with optional supertags
 - **create_reference_node**: Create nodes that reference existing nodes
 - **create_date_node**: Create date nodes with ISO 8601 formatted dates
@@ -23,15 +23,23 @@ This MCP server provides comprehensive access to Tana's Input API with:
 - **create_supertag**: Create new supertag definitions in your workspace
 - **create_field**: Create new field definitions in your workspace
 
-*See [API.md](./API.md) for detailed documentation of all tools with parameters and examples.*
+#### 🎯 Schema-Aware Smart Capture (NEW!)
+- **Dynamic tool generation**: Define supertag schemas once, get typed tools like `create_task`, `create_person`
+- **Name→ID mapping**: Use human-readable names instead of workspace IDs
+- **Input validation**: Automatic validation and normalization of dates, URLs, booleans
+- **Schema management**: `add_schema`, `update_mappings`, `get_schemas`, `get_config` tools
 
-### 💬 Prompts (4 templates)
+*See [API.md](./API.md) for detailed documentation of all tools with parameters and examples.*
+*See [SCHEMA-GUIDE.md](./SCHEMA-GUIDE.md) for the complete schema-aware functionality guide.*
+
+### 💬 Prompts (4+ templates)
 - **create-task**: Interactive task creation with due dates, priorities, and assignments
 - **create-project**: Complete project structures with goals, milestones, and team members
 - **create-meeting-notes**: Formatted meeting notes with attendees, agenda, and action items
 - **create-knowledge-entry**: Organized knowledge entries with categories, sources, and related topics
+- **Schema-generated prompts**: Dynamic prompts created from your supertag schemas
 
-*Prompts provide interactive templates for common use cases. See [API.md](./API.md) for detailed parameters and examples.*
+*Prompts provide interactive templates for common use cases. Schema-based prompts adapt to your workspace structure.*
 
 ### 📚 Resources (4 available)
 - **api-docs** (`tana://api/documentation`): Complete Tana Input API reference
@@ -42,6 +50,12 @@ This MCP server provides comprehensive access to Tana's Input API with:
 *Resources provide built-in documentation accessible through your MCP client.*
 
 ## Quick Reference
+
+### Schema-Aware Tools (NEW!)
+- `add_schema`: Define supertag schemas to generate typed tools
+- `update_mappings`: Map human-readable names to workspace IDs
+- `create_[schema_name]`: Auto-generated tools from your schemas
+- `get_schemas`, `get_config`: Manage your schema configuration
 
 ### Most Common Tools
 - `create_plain_node`: Create basic text nodes

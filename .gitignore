@@ -8,6 +8,13 @@ build/
 # Environment variables
 .env
 
+# Configuration files with secrets
+tana-schema-config.json
+
+# Test files
+test-*.ts
+test-*.js
+
 # Logs
 logs
 *.log
