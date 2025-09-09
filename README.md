@@ -11,23 +11,51 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that c
 This MCP server provides comprehensive access to Tana's Input API with:
 
 ### 🛠️ Tools (11 available)
-- **Node Creation**: Create plain, reference, date, URL, checkbox, and file nodes
-- **Field Management**: Create and manage field nodes with structured data
-- **Complex Structures**: Build nested node hierarchies
-- **Schema Operations**: Create supertags and field definitions
-- **Node Updates**: Modify existing node names
+- **create_plain_node**: Create basic text nodes with optional supertags
+- **create_reference_node**: Create nodes that reference existing nodes
+- **create_date_node**: Create date nodes with ISO 8601 formatted dates
+- **create_url_node**: Create URL nodes for web links
+- **create_checkbox_node**: Create checkbox nodes for tasks and toggleable items
+- **create_file_node**: Create file nodes with base64-encoded file data
+- **create_field_node**: Create field nodes under target nodes with specific attributes
+- **create_node_structure**: Build complex nested node hierarchies with children and fields
+- **set_node_name**: Update the name of existing nodes
+- **create_supertag**: Create new supertag definitions in your workspace
+- **create_field**: Create new field definitions in your workspace
+
+*See [API.md](./API.md) for detailed documentation of all tools with parameters and examples.*
 
 ### 💬 Prompts (4 templates)
-- **Task Creation**: Structured task creation with due dates and priorities
-- **Project Setup**: Complete project structures with goals and milestones
-- **Meeting Notes**: Formatted meeting notes with attendees and action items
-- **Knowledge Base**: Organized knowledge entries with categories and sources
+- **create-task**: Interactive task creation with due dates, priorities, and assignments
+- **create-project**: Complete project structures with goals, milestones, and team members
+- **create-meeting-notes**: Formatted meeting notes with attendees, agenda, and action items
+- **create-knowledge-entry**: Organized knowledge entries with categories, sources, and related topics
+
+*Prompts provide interactive templates for common use cases. See [API.md](./API.md) for detailed parameters and examples.*
 
 ### 📚 Resources (4 available)
-- **API Documentation**: Complete reference for Tana Input API
-- **Node Types Guide**: Detailed examples of all supported node types
-- **Usage Examples**: Common patterns and best practices
-- **Server Info**: Current status and configuration details
+- **api-docs** (`tana://api/documentation`): Complete Tana Input API reference
+- **node-types** (`tana://reference/node-types`): Detailed guide to all supported node types
+- **examples** (`tana://examples/common-patterns`): Common usage patterns and best practices
+- **server-info** (`tana://info`): Current server status and configuration details
+
+*Resources provide built-in documentation accessible through your MCP client.*
+
+## Quick Reference
+
+### Most Common Tools
+- `create_plain_node`: Create basic text nodes
+- `create_node_structure`: Build complex hierarchies
+- `create_checkbox_node`: Create tasks/todos
+- `set_node_name`: Update existing nodes
+
+### Prompt Templates
+- `create-task`: Interactive task creation
+- `create-project`: Project setup wizard
+- `create-meeting-notes`: Meeting documentation
+- `create-knowledge-entry`: Knowledge base entries
+
+*For complete tool documentation with parameters and examples, see [API.md](./API.md)*
 
 ## Requirements
 
@@ -136,6 +164,15 @@ MCP clients that support prompts can use templates like:
 - Payload size: 5000 characters maximum
 - Workspace limit: 750,000 nodes
 
+## Documentation
+
+- **[API Reference](./API.md)**: Comprehensive documentation of all 11 tools, 4 prompts, and 4 resources
+- **[Developer Guide](./DEVELOPMENT.md)**: Architecture, setup, and contribution guidelines
+- **[Contributing Guide](./CONTRIBUTING.md)**: How to contribute code, documentation, and bug reports
+- **[Architecture Overview](./ARCHITECTURE.md)**: System design and component interactions
+- **[Examples](./examples/)**: Usage examples and common patterns
+- **[Changelog](./CHANGELOG.md)**: Version history and release notes
+
 ## Development
 
 ### Building from Source
@@ -170,7 +207,15 @@ This error was fixed in v1.2.0. Please update to the latest version.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We welcome contributions! Please see our [Developer Guide](./DEVELOPMENT.md) for:
+
+- Development setup and workflow
+- Architecture overview and code organization  
+- Guidelines for adding new tools and features
+- Testing and code quality standards
+- How to submit pull requests
+
+For issues and feature requests, please use the [GitHub Issues](https://github.com/tim-mcdonnell/tana-mcp/issues) page.
 
 ## License
 
