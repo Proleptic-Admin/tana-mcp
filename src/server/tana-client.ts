@@ -14,16 +14,22 @@ import {
   TanaSetNameRequest
 } from '../types/tana-api';
 import { MirrorStorage } from './mirror-storage';
+import { BatchingQueue } from './batching-queue';
 
 export class TanaClient {
   private readonly apiToken: string;
   private readonly endpoint: string;
   private readonly mirrorStorage: MirrorStorage;
+  private readonly batchingQueue: BatchingQueue;
 
   constructor(config: TanaConfig, mirrorStorage?: MirrorStorage) {
     this.apiToken = config.apiToken;
     this.endpoint = config.endpoint || 'https://europe-west1-tagr-prod.cloudfunctions.net/addToNodeV2';
     this.mirrorStorage = mirrorStorage || new MirrorStorage();
+    this.batchingQueue = new BatchingQueue();
+    
+    // Set up the HTTP executor for the batching queue
+    this.batchingQueue.setHttpExecutor(this.executeHttpRequest.bind(this));
   }
 
   /**
@@ -33,10 +39,6 @@ export class TanaClient {
    * @returns The created nodes
    */
   async createNodes(targetNodeId: string | undefined, nodes: TanaNode[]): Promise<TanaNodeResponse[]> {
-    if (nodes.length > 100) {
-      throw new Error('Maximum of 100 nodes can be created in a single request');
-    }
-
     const request: TanaCreateNodesRequest = {
       targetNodeId,
       nodes
@@ -103,11 +105,20 @@ export class TanaClient {
   }
 
   /**
-   * Make a request to the Tana API
+   * Make a request to the Tana API through the batching queue
    * @param request The request to send
    * @returns The API response
    */
   private async makeRequest(request: TanaAPIRequest): Promise<TanaAPIResponse> {
+    return this.batchingQueue.enqueue(request);
+  }
+
+  /**
+   * Execute the actual HTTP request (called by batching queue)
+   * @param request The request to send
+   * @returns The API response
+   */
+  private async executeHttpRequest(request: TanaAPIRequest): Promise<TanaAPIResponse> {
     try {
       const response = await axios.post<TanaAPIResponse>(this.endpoint, request, {
         headers: {
@@ -123,5 +134,12 @@ export class TanaClient {
       }
       throw error;
     }
+  }
+
+  /**
+   * Get the batching queue instance for monitoring
+   */
+  getBatchingQueue(): BatchingQueue {
+    return this.batchingQueue;
   }
 } 
