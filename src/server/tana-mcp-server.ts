@@ -173,9 +173,10 @@ export class TanaMcpServer {
         targetNodeId: z.string().optional(),
         name: z.string(),
         description: z.string().optional(),
-        supertags: z.array(SupertagSchema).optional()
+        supertags: z.array(SupertagSchema).optional(),
+        dry_run: z.boolean().optional().describe('If true, return the exact JSON that would be sent and chunking plan without writing')
       },
-      async ({ targetNodeId, name, description, supertags }) => {
+      async ({ targetNodeId, name, description, supertags, dry_run }) => {
         try {
           const node: TanaPlainNode = {
             name,
@@ -183,7 +184,7 @@ export class TanaMcpServer {
             supertags
           };
 
-          const result = await this.tanaClient.createNode(targetNodeId, node);
+          const result = await this.tanaClient.createNode(targetNodeId, node, dry_run);
 
           return {
             content: [
@@ -213,16 +214,17 @@ export class TanaMcpServer {
       'create_reference_node',
       {
         targetNodeId: z.string().optional(),
-        referenceId: z.string()
+        referenceId: z.string(),
+        dry_run: z.boolean().optional().describe('If true, return the exact JSON that would be sent and chunking plan without writing')
       },
-      async ({ targetNodeId, referenceId }) => {
+      async ({ targetNodeId, referenceId, dry_run }) => {
         try {
           const node: TanaReferenceNode = {
             dataType: 'reference',
             id: referenceId
           };
 
-          const result = await this.tanaClient.createNode(targetNodeId, node);
+          const result = await this.tanaClient.createNode(targetNodeId, node, dry_run);
 
           return {
             content: [

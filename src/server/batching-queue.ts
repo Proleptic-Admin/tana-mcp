@@ -46,7 +46,7 @@ export class BatchingQueue {
   /**
    * Add a request to the queue
    */
-  async enqueue(request: TanaAPIRequest): Promise<TanaAPIResponse> {
+  async enqueue(request: TanaAPIRequest, dryRun: boolean = false): Promise<TanaAPIResponse> {
     // Estimate nodes that will be created by this request
     const estimatedNewNodes = this.isCreateNodesRequest(request) ? request.nodes.length : 0;
     
@@ -69,7 +69,12 @@ export class BatchingQueue {
 
     // For createNodes requests, validate node count and potentially split
     if (this.isCreateNodesRequest(request) && request.nodes.length > this.options.maxNodesPerRequest) {
-      return this.handleLargeCreateRequest(request);
+      return this.handleLargeCreateRequest(request, dryRun);
+    }
+
+    // If dry run mode, return the request details without executing
+    if (dryRun) {
+      return this.getDryRunResponse(request);
     }
 
     return new Promise<TanaAPIResponse>((resolve, reject) => {
@@ -131,8 +136,14 @@ export class BatchingQueue {
   /**
    * Handle large createNodes requests by splitting them
    */
-  private async handleLargeCreateRequest(request: TanaCreateNodesRequest): Promise<TanaAPIResponse> {
+  private async handleLargeCreateRequest(request: TanaCreateNodesRequest, dryRun: boolean = false): Promise<TanaAPIResponse> {
     const chunks = this.chunkNodes(request.nodes, this.options.maxNodesPerRequest);
+    
+    if (dryRun) {
+      // For dry run, return the chunking plan
+      return this.getDryRunResponseForChunkedRequest(request, chunks);
+    }
+    
     const allResponses: TanaAPIResponse[] = [];
 
     for (const chunk of chunks) {
@@ -141,7 +152,7 @@ export class BatchingQueue {
         nodes: chunk
       };
       
-      const response = await this.enqueue(chunkRequest);
+      const response = await this.enqueue(chunkRequest, dryRun);
       allResponses.push(response);
     }
 
@@ -265,5 +276,74 @@ export class BatchingQueue {
    */
   setNodeCount(count: number): void {
     this.totalNodeCount = Math.max(0, count);
+  }
+
+  /**
+   * Generate a dry-run response for a single request
+   */
+  private getDryRunResponse(request: TanaAPIRequest): TanaAPIResponse {
+    const payloadSize = JSON.stringify(request).length;
+    const estimatedNewNodes = this.isCreateNodesRequest(request) ? request.nodes.length : 0;
+
+    return {
+      dryRun: true,
+      requestPayload: request,
+      payloadInfo: {
+        sizeInBytes: payloadSize,
+        estimatedNewNodes: estimatedNewNodes,
+        wouldExceedWorkspaceLimit: this.totalNodeCount + estimatedNewNodes > this.options.maxWorkspaceNodes,
+        wouldExceedPayloadLimit: payloadSize > this.options.maxPayloadSize,
+        currentWorkspaceNodeCount: this.totalNodeCount,
+        workspaceNodeLimit: this.options.maxWorkspaceNodes,
+        payloadSizeLimit: this.options.maxPayloadSize
+      },
+      chunkingPlan: {
+        totalRequests: 1,
+        chunks: [
+          {
+            chunkIndex: 0,
+            nodeCount: estimatedNewNodes,
+            payloadSize: payloadSize
+          }
+        ]
+      }
+    } as any; // Type assertion since TanaAPIResponse doesn't include dry-run fields
+  }
+
+  /**
+   * Generate a dry-run response for a chunked request
+   */
+  private getDryRunResponseForChunkedRequest(request: TanaCreateNodesRequest, chunks: any[][]): TanaAPIResponse {
+    const totalPayloadSize = JSON.stringify(request).length;
+    const totalNodes = request.nodes.length;
+
+    const chunkDetails = chunks.map((chunk, index) => {
+      const chunkRequest = { ...request, nodes: chunk };
+      const chunkPayloadSize = JSON.stringify(chunkRequest).length;
+      return {
+        chunkIndex: index,
+        nodeCount: chunk.length,
+        payloadSize: chunkPayloadSize
+      };
+    });
+
+    return {
+      dryRun: true,
+      requestPayload: request,
+      payloadInfo: {
+        sizeInBytes: totalPayloadSize,
+        estimatedNewNodes: totalNodes,
+        wouldExceedWorkspaceLimit: this.totalNodeCount + totalNodes > this.options.maxWorkspaceNodes,
+        wouldExceedPayloadLimit: false, // Already validated before chunking
+        currentWorkspaceNodeCount: this.totalNodeCount,
+        workspaceNodeLimit: this.options.maxWorkspaceNodes,
+        payloadSizeLimit: this.options.maxPayloadSize
+      },
+      chunkingPlan: {
+        totalRequests: chunks.length,
+        chunks: chunkDetails,
+        reason: `Request split into ${chunks.length} chunks due to node count limit (${this.options.maxNodesPerRequest} nodes per request)`
+      }
+    } as any; // Type assertion since TanaAPIResponse doesn't include dry-run fields
   }
 }

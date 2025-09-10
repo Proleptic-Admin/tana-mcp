@@ -36,15 +36,22 @@ export class TanaClient {
    * Create nodes in Tana
    * @param targetNodeId Optional target node ID to add nodes under
    * @param nodes Array of nodes to create
-   * @returns The created nodes
+   * @param dryRun If true, return what would be sent without executing
+   * @returns The created nodes or dry-run information
    */
-  async createNodes(targetNodeId: string | undefined, nodes: TanaNode[]): Promise<TanaNodeResponse[]> {
+  async createNodes(targetNodeId: string | undefined, nodes: TanaNode[], dryRun: boolean = false): Promise<TanaNodeResponse[]> {
     const request: TanaCreateNodesRequest = {
       targetNodeId,
       nodes
     };
 
-    const response = await this.makeRequest(request);
+    const response = await this.makeRequest(request, dryRun);
+    
+    // For dry-run, return the response as-is
+    if (dryRun) {
+      return response as any;
+    }
+    
     const createdNodes = response.children || [];
 
     // Store created nodes in mirror storage
@@ -64,10 +71,17 @@ export class TanaClient {
    * Create a single node in Tana
    * @param targetNodeId Optional target node ID to add the node under
    * @param node Node to create
-   * @returns The created node
+   * @param dryRun If true, return what would be sent without executing
+   * @returns The created node or dry-run information
    */
-  async createNode(targetNodeId: string | undefined, node: TanaNode): Promise<TanaNodeResponse> {
-    const nodes = await this.createNodes(targetNodeId, [node]);
+  async createNode(targetNodeId: string | undefined, node: TanaNode, dryRun: boolean = false): Promise<TanaNodeResponse> {
+    const nodes = await this.createNodes(targetNodeId, [node], dryRun);
+    
+    // For dry-run, return the response as-is
+    if (dryRun) {
+      return nodes as any;
+    }
+    
     if (nodes.length === 0) {
       throw new Error('Failed to create node');
     }
@@ -78,15 +92,21 @@ export class TanaClient {
    * Set the name of a node in Tana
    * @param targetNodeId ID of the node to rename
    * @param newName New name for the node
-   * @returns The updated node
+   * @param dryRun If true, return what would be sent without executing
+   * @returns The updated node or dry-run information
    */
-  async setNodeName(targetNodeId: string, newName: string): Promise<TanaNodeResponse> {
+  async setNodeName(targetNodeId: string, newName: string, dryRun: boolean = false): Promise<TanaNodeResponse> {
     const request: TanaSetNameRequest = {
       targetNodeId,
       setName: newName
     };
 
-    const response = await this.makeRequest(request);
+    const response = await this.makeRequest(request, dryRun);
+    
+    // For dry-run, return the response as-is
+    if (dryRun) {
+      return response as any;
+    }
     
     // Handle the different response format for setName
     if (response.children && response.children.length > 0) {
@@ -107,10 +127,11 @@ export class TanaClient {
   /**
    * Make a request to the Tana API through the batching queue
    * @param request The request to send
-   * @returns The API response
+   * @param dryRun If true, return what would be sent without executing
+   * @returns The API response or dry-run information
    */
-  private async makeRequest(request: TanaAPIRequest): Promise<TanaAPIResponse> {
-    return this.batchingQueue.enqueue(request);
+  private async makeRequest(request: TanaAPIRequest, dryRun: boolean = false): Promise<TanaAPIResponse> {
+    return this.batchingQueue.enqueue(request, dryRun);
   }
 
   /**
