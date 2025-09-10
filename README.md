@@ -93,6 +93,8 @@ create_plain_node({
 - **create_field_node**: Create field nodes under target nodes with specific attributes
 - **create_node_structure**: Build complex nested node hierarchies with children and fields (`dry_run` supported)
 - **set_node_name**: Update the name of existing nodes (`dry_run` supported)
+- **rename**: Simple wrapper for renaming nodes
+- **append_children**: Append multiple child nodes to existing targets (INBOX, SCHEMA, etc.)
 - **create_supertag**: Create new supertag definitions in your workspace
 - **create_field**: Create new field definitions in your workspace
 

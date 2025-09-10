@@ -1600,6 +1600,77 @@ ${content.content}`
         }
       }
     );
+
+    // Rename tool - simple wrapper around set_node_name
+    this.server.tool(
+      'rename',
+      'Rename a node by setting its name',
+      {
+        nodeId: z.string().describe('ID of the node to rename'),
+        newName: z.string().describe('New name for the node')
+      },
+      async ({ nodeId, newName }) => {
+        try {
+          const result = await this.tanaClient.setNodeName(nodeId, newName);
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(result, null, 2)
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error renaming node: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
+    );
+
+    // Append children tool - append multiple nodes to an existing target
+    this.server.tool(
+      'append_children',
+      'Append children nodes to an existing target node (supports INBOX, SCHEMA, or any nodeId)',
+      {
+        targetNodeId: z.string().describe('ID of target node to append to (use "INBOX", "SCHEMA", or specific node ID)'),
+        children: z.array(NodeSchema).describe('Array of child nodes to append')
+      },
+      async ({ targetNodeId, children }) => {
+        try {
+          // Cast children to TanaNode array to satisfy the type system
+          const result = await this.tanaClient.createNodes(targetNodeId, children as any[]);
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(result, null, 2)
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error appending children: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
+    );
   }
 
   /**

@@ -54,7 +54,7 @@ When `dry_run: true` is specified, tools return the exact JSON payload that woul
 
 ## Tools
 
-The Tana MCP Server provides 11 tools for creating and manipulating nodes in Tana workspaces.
+The Tana MCP Server provides 13 tools for creating and manipulating nodes in Tana workspaces.
 
 ### create_plain_node
 
@@ -337,6 +337,56 @@ Updates the name of an existing node.
 ```
 
 **Returns:** JSON object with the updated node information.
+
+---
+
+### rename
+
+A simplified wrapper around `set_node_name` for easy node renaming.
+
+**Parameters:**
+- `nodeId` (required, string): ID of the node to rename
+- `newName` (required, string): New name for the node
+
+**Example:**
+```typescript
+{
+  "nodeId": "node-123",
+  "newName": "My Renamed Node"
+}
+```
+
+**Returns:** JSON object with the updated node information.
+
+---
+
+### append_children
+
+Appends multiple child nodes to an existing target node. Supports special targets like INBOX, SCHEMA, or any specific node ID.
+
+**Parameters:**
+- `targetNodeId` (required, string): ID of target node to append to (use "INBOX", "SCHEMA", or specific node ID)
+- `children` (required, array): Array of child nodes to append
+
+**Example:**
+```typescript
+{
+  "targetNodeId": "SCHEMA",
+  "children": [
+    {
+      "name": "New Task",
+      "dataType": "boolean",
+      "value": false
+    },
+    {
+      "name": "Project Notes",
+      "description": "Meeting notes from today"
+    }
+  ]
+}
+```
+
+**Returns:** JSON array with the created child nodes information.
 
 ---
 
