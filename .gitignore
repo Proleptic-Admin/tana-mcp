@@ -11,6 +11,11 @@ build/
 # Configuration files with secrets
 tana-schema-config.json
 
+# Runtime storage files
+tana-mirror.json
+tana-publish-config.json
+tana-publish-content/
+
 # Test files
 test-*.ts
 test-*.js
