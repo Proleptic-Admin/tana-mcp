@@ -6,6 +6,9 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { promises as fs } from 'fs';
+import { extname } from 'path';
+import axios from 'axios';
 import { TanaClient } from './tana-client';
 import { SchemaManager } from './schema-manager';
 import { InputValidator } from './input-validator';
@@ -414,6 +417,107 @@ export class TanaMcpServer {
               {
                 type: 'text',
                 text: `Error creating file node: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
+    );
+
+    // Upload file tool - handles path, bytes, or URL input
+    this.server.tool(
+      'upload_file',
+      {
+        path: z.string().optional(),
+        bytes: z.string().optional(), // base64 encoded bytes
+        url: z.string().optional(),
+        target: z.string().optional(), // targetNodeId
+        filename: z.string().optional(), // Override filename
+        contentType: z.string().optional(), // Override content type
+        description: z.string().optional(),
+        supertags: z.array(SupertagSchema).optional()
+      },
+      async ({ path, bytes, url, target, filename, contentType, description, supertags }) => {
+        try {
+          // Validate that exactly one input source is provided
+          const inputSources = [path, bytes, url].filter(Boolean);
+          if (inputSources.length !== 1) {
+            throw new Error('Exactly one of path, bytes, or url must be provided');
+          }
+
+          let fileData: string; // base64 encoded data
+          let detectedFilename: string;
+          let detectedContentType: string;
+
+          if (path) {
+            // Read file from filesystem
+            try {
+              const buffer = await fs.readFile(path);
+              fileData = buffer.toString('base64');
+              detectedFilename = path.split('/').pop() || path.split('\\').pop() || 'unknown';
+              detectedContentType = this.getMimeType(path);
+            } catch (error) {
+              throw new Error(`Failed to read file from path: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          } else if (bytes) {
+            // Use provided base64 bytes
+            fileData = bytes;
+            detectedFilename = filename || 'upload';
+            detectedContentType = contentType || 'application/octet-stream';
+          } else if (url) {
+            // Download file from URL
+            try {
+              const response = await axios.get(url, { 
+                responseType: 'arraybuffer',
+                timeout: 30000, // 30 second timeout
+                maxContentLength: 50 * 1024 * 1024 // 50MB max
+              });
+              
+              const buffer = Buffer.from(response.data);
+              fileData = buffer.toString('base64');
+              
+              // Try to get filename from URL or Content-Disposition header
+              detectedFilename = this.extractFilenameFromUrl(url, response.headers['content-disposition']);
+              detectedContentType = response.headers['content-type'] || 'application/octet-stream';
+            } catch (error) {
+              throw new Error(`Failed to download file from URL: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          } else {
+            throw new Error('No valid input source provided');
+          }
+
+          // Use provided overrides or detected values
+          const finalFilename = filename || detectedFilename;
+          const finalContentType = contentType || detectedContentType;
+
+          // Create the file node using existing logic
+          const node: TanaFileNode = {
+            dataType: 'file',
+            file: fileData,
+            filename: finalFilename,
+            contentType: finalContentType,
+            description,
+            supertags
+          };
+
+          const result = await this.tanaClient.createNode(target, node);
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(result, null, 2)
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error uploading file: ${error instanceof Error ? error.message : String(error)}`
               }
             ],
             isError: true
@@ -1712,6 +1816,110 @@ ${content.content}`
 
     // Note: Dynamic publish page resources will be handled by the resource handler
     // when a specific URI like tana://publish/slug is requested
+  }
+
+  /**
+   * Get MIME type based on file extension
+   */
+  private getMimeType(filename: string): string {
+    const ext = extname(filename).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      // Images
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
+      '.bmp': 'image/bmp',
+      '.ico': 'image/x-icon',
+      
+      // Documents
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xls': 'application/vnd.ms-excel',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.ppt': 'application/vnd.ms-powerpoint',
+      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      '.txt': 'text/plain',
+      '.rtf': 'application/rtf',
+      '.odt': 'application/vnd.oasis.opendocument.text',
+      '.ods': 'application/vnd.oasis.opendocument.spreadsheet',
+      '.odp': 'application/vnd.oasis.opendocument.presentation',
+      
+      // Audio
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.ogg': 'audio/ogg',
+      '.m4a': 'audio/mp4',
+      '.aac': 'audio/aac',
+      '.flac': 'audio/flac',
+      '.wma': 'audio/x-ms-wma',
+      
+      // Video
+      '.mp4': 'video/mp4',
+      '.avi': 'video/x-msvideo',
+      '.mov': 'video/quicktime',
+      '.wmv': 'video/x-ms-wmv',
+      '.flv': 'video/x-flv',
+      '.webm': 'video/webm',
+      '.mkv': 'video/x-matroska',
+      
+      // Archives
+      '.zip': 'application/zip',
+      '.rar': 'application/vnd.rar',
+      '.7z': 'application/x-7z-compressed',
+      '.tar': 'application/x-tar',
+      '.gz': 'application/gzip',
+      
+      // Text/Code
+      '.html': 'text/html',
+      '.htm': 'text/html',
+      '.xml': 'application/xml',
+      '.json': 'application/json',
+      '.js': 'application/javascript',
+      '.css': 'text/css',
+      '.csv': 'text/csv',
+      '.md': 'text/markdown',
+      
+      // Other
+      '.bin': 'application/octet-stream'
+    };
+    
+    return mimeTypes[ext] || 'application/octet-stream';
+  }
+
+  /**
+   * Extract filename from URL or Content-Disposition header
+   */
+  private extractFilenameFromUrl(url: string, contentDisposition?: string): string {
+    // First try to get filename from Content-Disposition header
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        const filename = filenameMatch[1].replace(/['"]/g, '');
+        if (filename && filename !== '') {
+          return filename;
+        }
+      }
+    }
+    
+    // Fallback to extracting from URL
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      const filename = pathname.split('/').pop();
+      
+      if (filename && filename !== '' && filename.includes('.')) {
+        return decodeURIComponent(filename);
+      }
+    } catch (error) {
+      // Invalid URL, continue to fallback
+    }
+    
+    // Final fallback
+    return 'download';
   }
 
 } 

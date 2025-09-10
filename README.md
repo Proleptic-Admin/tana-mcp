@@ -72,6 +72,7 @@ create_task({
 - **create_url_node**: Create URL nodes for web links
 - **create_checkbox_node**: Create checkbox nodes for tasks and toggleable items
 - **create_file_node**: Create file nodes with base64-encoded file data
+- **upload_file**: Upload files from local paths, URLs, or raw bytes with auto-detection
 - **create_field_node**: Create field nodes under target nodes with specific attributes
 - **create_node_structure**: Build complex nested node hierarchies with children and fields
 - **set_node_name**: Update the name of existing nodes
