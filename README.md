@@ -65,17 +65,34 @@ create_task({
 
 **👉 [Get started in 5 minutes](./QUICK-START.md) | [Full schema guide](./SCHEMA-GUIDE.md)**
 
+### 🔍 **Dry-Run Mode** (NEW!)
+Preview and debug any operation before executing:
+
+```javascript
+// ✅ See exactly what would be sent to Tana's API
+create_plain_node({
+  name: "My Task",
+  dry_run: true  // Returns JSON payload + chunking plan without writing
+})
+```
+
+**Key Benefits:**
+- **🛡️ Safe preview**: See exact API payload before writing
+- **🐛 Debug schemas**: Perfect for troubleshooting malformed data  
+- **📊 Chunking insights**: Understand how large requests get split
+- **📋 Documentation**: Generate valid API examples
+
 ### 🛠️ Core Tools (20+ available)
-- **create_plain_node**: Create basic text nodes with optional supertags
-- **create_reference_node**: Create nodes that reference existing nodes
-- **create_date_node**: Create date nodes with ISO 8601 formatted dates
-- **create_url_node**: Create URL nodes for web links
+- **create_plain_node**: Create basic text nodes with optional supertags (`dry_run` supported)
+- **create_reference_node**: Create nodes that reference existing nodes (`dry_run` supported)
+- **create_date_node**: Create date nodes with ISO 8601 formatted dates (`dry_run` supported)
+- **create_url_node**: Create URL nodes for web links (`dry_run` supported)
 - **create_checkbox_node**: Create checkbox nodes for tasks and toggleable items
 - **create_file_node**: Create file nodes with base64-encoded file data
-- **upload_file**: Upload files from local paths, URLs, or raw bytes with auto-detection
+- **upload_file**: Upload files from local paths, URLs, or raw bytes with auto-detection (`dry_run` supported)
 - **create_field_node**: Create field nodes under target nodes with specific attributes
-- **create_node_structure**: Build complex nested node hierarchies with children and fields
-- **set_node_name**: Update the name of existing nodes
+- **create_node_structure**: Build complex nested node hierarchies with children and fields (`dry_run` supported)
+- **set_node_name**: Update the name of existing nodes (`dry_run` supported)
 - **create_supertag**: Create new supertag definitions in your workspace
 - **create_field**: Create new field definitions in your workspace
 

@@ -256,9 +256,10 @@ export class TanaMcpServer {
         targetNodeId: z.string().optional(),
         date: z.string(),
         description: z.string().optional(),
-        supertags: z.array(SupertagSchema).optional()
+        supertags: z.array(SupertagSchema).optional(),
+        dry_run: z.boolean().optional().describe('If true, return the exact JSON that would be sent and chunking plan without writing')
       },
-      async ({ targetNodeId, date, description, supertags }) => {
+      async ({ targetNodeId, date, description, supertags, dry_run }) => {
         try {
           const node: TanaDateNode = {
             dataType: 'date',
@@ -267,7 +268,7 @@ export class TanaMcpServer {
             supertags
           };
 
-          const result = await this.tanaClient.createNode(targetNodeId, node);
+          const result = await this.tanaClient.createNode(targetNodeId, node, dry_run);
 
           return {
             content: [
@@ -299,9 +300,10 @@ export class TanaMcpServer {
         targetNodeId: z.string().optional(),
         url: z.string().url(),
         description: z.string().optional(),
-        supertags: z.array(SupertagSchema).optional()
+        supertags: z.array(SupertagSchema).optional(),
+        dry_run: z.boolean().optional().describe('If true, return the exact JSON that would be sent and chunking plan without writing')
       },
-      async ({ targetNodeId, url, description, supertags }) => {
+      async ({ targetNodeId, url, description, supertags, dry_run }) => {
         try {
           const node: TanaUrlNode = {
             dataType: 'url',
@@ -310,7 +312,7 @@ export class TanaMcpServer {
             supertags
           };
 
-          const result = await this.tanaClient.createNode(targetNodeId, node);
+          const result = await this.tanaClient.createNode(targetNodeId, node, dry_run);
 
           return {
             content: [
@@ -438,9 +440,10 @@ export class TanaMcpServer {
         filename: z.string().optional(), // Override filename
         contentType: z.string().optional(), // Override content type
         description: z.string().optional(),
-        supertags: z.array(SupertagSchema).optional()
+        supertags: z.array(SupertagSchema).optional(),
+        dry_run: z.boolean().optional().describe('If true, return the exact JSON that would be sent and chunking plan without writing')
       },
-      async ({ path, bytes, url, target, filename, contentType, description, supertags }) => {
+      async ({ path, bytes, url, target, filename, contentType, description, supertags, dry_run }) => {
         try {
           // Validate that exactly one input source is provided
           const inputSources = [path, bytes, url].filter(Boolean);
@@ -503,7 +506,7 @@ export class TanaMcpServer {
             supertags
           };
 
-          const result = await this.tanaClient.createNode(target, node);
+          const result = await this.tanaClient.createNode(target, node, dry_run);
 
           return {
             content: [
@@ -576,11 +579,12 @@ export class TanaMcpServer {
       'set_node_name',
       {
         nodeId: z.string(),
-        newName: z.string()
+        newName: z.string(),
+        dry_run: z.boolean().optional().describe('If true, return the exact JSON that would be sent and chunking plan without writing')
       },
-      async ({ nodeId, newName }) => {
+      async ({ nodeId, newName, dry_run }) => {
         try {
-          const result = await this.tanaClient.setNodeName(nodeId, newName);
+          const result = await this.tanaClient.setNodeName(nodeId, newName, dry_run);
 
           return {
             content: [
@@ -610,12 +614,13 @@ export class TanaMcpServer {
       'create_node_structure',
       {
         targetNodeId: z.string().optional(),
-        node: NodeSchema
+        node: NodeSchema,
+        dry_run: z.boolean().optional().describe('If true, return the exact JSON that would be sent and chunking plan without writing')
       },
-      async ({ targetNodeId, node }) => {
+      async ({ targetNodeId, node, dry_run }) => {
         try {
           // Cast to TanaNode to satisfy the type system
-          const result = await this.tanaClient.createNode(targetNodeId, node as any);
+          const result = await this.tanaClient.createNode(targetNodeId, node as any, dry_run);
 
           return {
             content: [
