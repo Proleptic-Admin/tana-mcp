@@ -201,6 +201,56 @@ Creates a file node with base64-encoded file data.
 
 ---
 
+### upload_file
+
+Uploads a file from various sources (local path, raw bytes, or URL) and creates a file node.
+
+**Parameters:**
+- `path` (optional, string): Local file path to upload
+- `bytes` (optional, string): Base64-encoded file data
+- `url` (optional, string): URL to download and upload file from
+- `target` (optional, string): ID of the parent node to create this node under
+- `filename` (optional, string): Override filename (auto-detected if not provided)
+- `contentType` (optional, string): Override MIME type (auto-detected if not provided)
+- `description` (optional, string): Description for the file node
+- `supertags` (optional, array): Array of supertag objects to apply to the node
+
+**Note:** Exactly one of `path`, `bytes`, or `url` must be provided.
+
+**Examples:**
+
+Upload from local path:
+```typescript
+{
+  "path": "/home/user/documents/report.pdf",
+  "target": "documents-node-123",
+  "description": "Q4 financial report"
+}
+```
+
+Upload from URL:
+```typescript
+{
+  "url": "https://example.com/image.jpg",
+  "target": "images-node-456",
+  "description": "Downloaded image"
+}
+```
+
+Upload from raw bytes:
+```typescript
+{
+  "bytes": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
+  "filename": "pixel.png",
+  "contentType": "image/png",
+  "target": "graphics-node-789"
+}
+```
+
+**Returns:** JSON object with the created file node information.
+
+---
+
 ### create_field_node
 
 Creates a field node under a target node with specified attribute.
