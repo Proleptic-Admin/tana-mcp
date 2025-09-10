@@ -2,6 +2,48 @@
 
 This document provides a comprehensive reference for all tools, prompts, and resources available in the Tana MCP Server.
 
+## Dry-Run Mode
+
+**NEW!** All tools now support a `dry_run` parameter for safe preview and debugging:
+
+```typescript
+{
+  "dry_run": true  // Add to any tool call
+}
+```
+
+When `dry_run: true` is specified, tools return the exact JSON payload that would be sent to Tana's API along with a detailed chunking plan, without actually writing any data. This is perfect for:
+
+- 🔍 **Debugging malformed schemas** - Preview the exact API request before sending
+- 🛡️ **Cautious operation** - Verify what will happen before making changes  
+- 📊 **Understanding chunking** - See how large requests will be split across multiple API calls
+- 📋 **Documentation** - Generate examples of valid API payloads
+
+**Dry-Run Response Format:**
+```typescript
+{
+  "dryRun": true,
+  "requestPayload": { /* Exact JSON that would be sent to Tana API */ },
+  "payloadInfo": {
+    "sizeInBytes": 243,
+    "estimatedNewNodes": 1,
+    "wouldExceedWorkspaceLimit": false,
+    "wouldExceedPayloadLimit": false,
+    "currentWorkspaceNodeCount": 0,
+    "workspaceNodeLimit": 750000,
+    "payloadSizeLimit": 5000
+  },
+  "chunkingPlan": {
+    "totalRequests": 2,
+    "chunks": [
+      { "chunkIndex": 0, "nodeCount": 100, "payloadSize": 1501 },
+      { "chunkIndex": 1, "nodeCount": 10, "payloadSize": 171 }
+    ],
+    "reason": "Request split into 2 chunks due to node count limit (100 nodes per request)"
+  }
+}
+```
+
 ## Table of Contents
 
 - [Tools](#tools)
