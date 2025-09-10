@@ -13,14 +13,17 @@ import {
   TanaNodeResponse,
   TanaSetNameRequest
 } from '../types/tana-api';
+import { MirrorStorage } from './mirror-storage';
 
 export class TanaClient {
   private readonly apiToken: string;
   private readonly endpoint: string;
+  private readonly mirrorStorage: MirrorStorage;
 
-  constructor(config: TanaConfig) {
+  constructor(config: TanaConfig, mirrorStorage?: MirrorStorage) {
     this.apiToken = config.apiToken;
     this.endpoint = config.endpoint || 'https://europe-west1-tagr-prod.cloudfunctions.net/addToNodeV2';
+    this.mirrorStorage = mirrorStorage || new MirrorStorage();
   }
 
   /**
@@ -40,7 +43,19 @@ export class TanaClient {
     };
 
     const response = await this.makeRequest(request);
-    return response.children || [];
+    const createdNodes = response.children || [];
+
+    // Store created nodes in mirror storage
+    try {
+      for (let i = 0; i < nodes.length && i < createdNodes.length; i++) {
+        await this.mirrorStorage.storeNode(nodes[i], targetNodeId, createdNodes[i].nodeId);
+      }
+    } catch (error) {
+      // Log but don't fail the operation if mirror storage fails
+      console.warn('Failed to store nodes in mirror storage:', error);
+    }
+
+    return createdNodes;
   }
 
   /**
@@ -78,6 +93,13 @@ export class TanaClient {
     
     // If the response doesn't match expected format, make a best guess
     return { nodeId: targetNodeId };
+  }
+
+  /**
+   * Get the mirror storage instance
+   */
+  getMirrorStorage(): MirrorStorage {
+    return this.mirrorStorage;
   }
 
   /**
