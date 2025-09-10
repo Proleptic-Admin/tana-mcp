@@ -10,6 +10,8 @@ import { TanaClient } from './tana-client';
 import { SchemaManager } from './schema-manager';
 import { InputValidator } from './input-validator';
 import { SchemaToolGenerator } from './schema-tool-generator';
+import { MirrorStorage } from './mirror-storage';
+import { PublishScraper } from './publish-scraper';
 import {
   TanaBooleanNode,
   TanaDateNode,
@@ -53,14 +55,22 @@ export class TanaMcpServer {
   private readonly schemaManager: SchemaManager;
   private readonly inputValidator: InputValidator;
   private readonly schemaToolGenerator: SchemaToolGenerator;
+  private readonly mirrorStorage: MirrorStorage;
+  private readonly publishScraper: PublishScraper;
   private toolsRegistered = false;
 
   constructor(apiToken: string, endpoint?: string, configPath?: string) {
-    // Create the Tana client
+    // Create mirror storage
+    this.mirrorStorage = new MirrorStorage();
+    
+    // Create the Tana client with mirror storage
     this.tanaClient = new TanaClient({
       apiToken,
       endpoint
-    });
+    }, this.mirrorStorage);
+
+    // Create publish scraper
+    this.publishScraper = new PublishScraper();
 
     // Create schema manager
     this.schemaManager = new SchemaManager(configPath);
@@ -115,6 +125,9 @@ export class TanaMcpServer {
       // Add schema management tools
       this.registerSchemaManagementTools();
 
+      // Add mirror and publish management tools
+      this.registerMirrorAndPublishTools();
+
     } catch (error) {
       // If initialization fails, continue with standard tools only
       console.error('Warning: Schema initialization failed, using standard tools only:', error);
@@ -124,6 +137,7 @@ export class TanaMcpServer {
         this.registerTools();
         this.registerPrompts();
         this.registerResources();
+        this.registerMirrorAndPublishTools();
         this.toolsRegistered = true;
       }
     }
@@ -1016,10 +1030,18 @@ Capabilities:
 - Resources: Documentation and examples available
 
 For detailed API documentation, see the 'api-docs' resource.
-For examples, see the 'examples' resource.`
+For examples, see the 'examples' resource.
+For mirror data, see 'tana://mirror/*' resources.
+For publish pages, see 'tana://publish/*' resources.`
         }]
       })
     );
+
+    // Mirror resources - local mirror data
+    this.registerMirrorResources();
+
+    // Publish resources - scraped Tana Publish pages  
+    this.registerPublishResources();
   }
 
   /**
@@ -1198,6 +1220,498 @@ For examples, see the 'examples' resource.`
         }
       }
     );
+  }
+
+  /**
+   * Register mirror and publish management tools
+   */
+  private registerMirrorAndPublishTools(): void {
+    // Query mirror tool
+    this.server.tool(
+      'query_mirror',
+      'Query nodes from the local mirror. Returns copies of nodes created by this server.',
+      {
+        category: z.string().optional().describe('Filter by category (tasks, projects, notes, etc.)'),
+        supertag: z.string().optional().describe('Filter by supertag ID'),
+        since: z.string().optional().describe('Filter by date (ISO 8601 timestamp)'),
+        limit: z.number().optional().default(50).describe('Maximum number of results (default 50)')
+      },
+      async ({ category, supertag, since, limit }) => {
+        try {
+          const results = await this.mirrorStorage.queryNodes({ category, supertag, since, limit });
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  total: results.length,
+                  results: results.map(entry => ({
+                    id: entry.id,
+                    category: entry.category,
+                    supertags: entry.supertags,
+                    timestamp: entry.timestamp,
+                    nodeData: entry.nodeData
+                  }))
+                }, null, 2)
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error querying mirror: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
+    );
+
+    // Get mirror stats tool
+    this.server.tool(
+      'get_mirror_stats',
+      'Get statistics about the local mirror storage',
+      {},
+      async () => {
+        try {
+          const stats = await this.mirrorStorage.getStats();
+          const categories = await this.mirrorStorage.getCategories();
+          const supertags = await this.mirrorStorage.getSupertags();
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  ...stats,
+                  availableCategories: categories,
+                  availableSupertags: supertags
+                }, null, 2)
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error getting mirror stats: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
+    );
+
+    // Add publish page tool
+    this.server.tool(
+      'add_publish_page',
+      'Add a Tana Publish page to monitor and scrape for read-only content',
+      {
+        slug: z.string().describe('Unique identifier for this publish page'),
+        url: z.string().url().describe('URL of the Tana Publish page'),
+        title: z.string().optional().describe('Optional title for the page'),
+        scrapeInterval: z.number().optional().default(60).describe('Scrape interval in minutes (default 60)')
+      },
+      async ({ slug, url, title, scrapeInterval }) => {
+        try {
+          await this.publishScraper.addPublishPage(slug, url, { title, scrapeInterval });
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Publish page '${slug}' added successfully. Content will be available at tana://publish/${slug}`
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error adding publish page: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
+    );
+
+    // Remove publish page tool
+    this.server.tool(
+      'remove_publish_page',
+      'Remove a Tana Publish page from monitoring',
+      {
+        slug: z.string().describe('Unique identifier of the publish page to remove')
+      },
+      async ({ slug }) => {
+        try {
+          await this.publishScraper.removePublishPage(slug);
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Publish page '${slug}' removed successfully`
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error removing publish page: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
+    );
+
+    // List publish pages tool
+    this.server.tool(
+      'list_publish_pages',
+      'List all configured Tana Publish pages',
+      {},
+      async () => {
+        try {
+          const pages = await this.publishScraper.getPublishPages();
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(pages, null, 2)
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error listing publish pages: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
+    );
+
+    // Scrape publish page tool
+    this.server.tool(
+      'scrape_publish_page',
+      'Manually scrape a specific Tana Publish page',
+      {
+        slug: z.string().describe('Unique identifier of the publish page to scrape'),
+        force: z.boolean().optional().default(false).describe('Force scrape even if within interval')
+      },
+      async ({ slug, force }) => {
+        try {
+          const content = await this.publishScraper.scrapePage(slug, force);
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Scraped '${content.title}' (${content.wordCount} words) at ${content.lastScraped}`
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error scraping publish page: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
+    );
+
+    // Get publish page content tool
+    this.server.tool(
+      'get_publish_page',
+      'Get content from a specific scraped Tana Publish page',
+      {
+        slug: z.string().describe('Unique identifier of the publish page')
+      },
+      async ({ slug }) => {
+        try {
+          const content = await this.publishScraper.getCachedContent(slug);
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `# ${content.title}
+
+**Source:** ${content.url}  
+**Last Updated:** ${content.lastScraped}  
+**Word Count:** ${content.wordCount}
+
+---
+
+${content.content}`
+              }
+            ],
+            isError: false
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error getting publish page: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            isError: true
+          };
+        }
+      }
+    );
+  }
+
+  /**
+   * Register mirror resources for local mirror data
+   */
+  private registerMirrorResources(): void {
+    // Mirror tasks resource
+    this.server.resource(
+      'mirror-tasks',
+      'tana://mirror/tasks',
+      {
+        name: 'Mirror: Tasks',
+        description: 'Tasks and boolean nodes created by this server',
+        mimeType: 'application/json'
+      },
+      async () => {
+        try {
+          const tasks = await this.mirrorStorage.queryNodes({ category: 'tasks', limit: 100 });
+          return {
+            contents: [{
+              uri: 'tana://mirror/tasks',
+              mimeType: 'application/json',
+              text: JSON.stringify({
+                type: 'mirror_data',
+                category: 'tasks',
+                count: tasks.length,
+                tasks: tasks.map(entry => ({
+                  id: entry.id,
+                  name: 'name' in entry.nodeData ? entry.nodeData.name : 'Unnamed',
+                  checked: 'value' in entry.nodeData ? entry.nodeData.value : false,
+                  timestamp: entry.timestamp,
+                  supertags: entry.supertags
+                }))
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          return {
+            contents: [{
+              uri: 'tana://mirror/tasks',
+              mimeType: 'text/plain',
+              text: `Error loading mirror tasks: ${error instanceof Error ? error.message : String(error)}`
+            }]
+          };
+        }
+      }
+    );
+
+    // Mirror projects resource
+    this.server.resource(
+      'mirror-projects',
+      'tana://mirror/projects',
+      {
+        name: 'Mirror: Projects',
+        description: 'Project nodes created by this server',
+        mimeType: 'application/json'
+      },
+      async () => {
+        try {
+          const projects = await this.mirrorStorage.queryNodes({ category: 'projects', limit: 100 });
+          return {
+            contents: [{
+              uri: 'tana://mirror/projects',
+              mimeType: 'application/json',
+              text: JSON.stringify({
+                type: 'mirror_data',
+                category: 'projects',
+                count: projects.length,
+                projects: projects.map(entry => ({
+                  id: entry.id,
+                  name: 'name' in entry.nodeData ? entry.nodeData.name : 'Unnamed',
+                  description: 'description' in entry.nodeData ? entry.nodeData.description : undefined,
+                  timestamp: entry.timestamp,
+                  supertags: entry.supertags
+                }))
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          return {
+            contents: [{
+              uri: 'tana://mirror/projects',
+              mimeType: 'text/plain',
+              text: `Error loading mirror projects: ${error instanceof Error ? error.message : String(error)}`
+            }]
+          };
+        }
+      }
+    );
+
+    // Mirror notes resource
+    this.server.resource(
+      'mirror-notes',
+      'tana://mirror/notes',
+      {
+        name: 'Mirror: Notes',
+        description: 'General notes and plain nodes created by this server',
+        mimeType: 'application/json'
+      },
+      async () => {
+        try {
+          const notes = await this.mirrorStorage.queryNodes({ category: 'notes', limit: 100 });
+          return {
+            contents: [{
+              uri: 'tana://mirror/notes',
+              mimeType: 'application/json',
+              text: JSON.stringify({
+                type: 'mirror_data',
+                category: 'notes',
+                count: notes.length,
+                notes: notes.map(entry => ({
+                  id: entry.id,
+                  name: 'name' in entry.nodeData ? entry.nodeData.name : 'Unnamed',
+                  description: 'description' in entry.nodeData ? entry.nodeData.description : undefined,
+                  timestamp: entry.timestamp,
+                  supertags: entry.supertags
+                }))
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          return {
+            contents: [{
+              uri: 'tana://mirror/notes',
+              mimeType: 'text/plain',
+              text: `Error loading mirror notes: ${error instanceof Error ? error.message : String(error)}`
+            }]
+          };
+        }
+      }
+    );
+
+    // Mirror stats resource
+    this.server.resource(
+      'mirror-stats',
+      'tana://mirror/stats',
+      {
+        name: 'Mirror: Statistics',
+        description: 'Statistics about the local mirror storage',
+        mimeType: 'application/json'
+      },
+      async () => {
+        try {
+          const stats = await this.mirrorStorage.getStats();
+          const categories = await this.mirrorStorage.getCategories();
+          return {
+            contents: [{
+              uri: 'tana://mirror/stats',
+              mimeType: 'application/json',
+              text: JSON.stringify({
+                type: 'mirror_stats',
+                ...stats,
+                availableCategories: categories,
+                availableResources: [
+                  'tana://mirror/tasks',
+                  'tana://mirror/projects', 
+                  'tana://mirror/notes',
+                  'tana://mirror/stats'
+                ]
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          return {
+            contents: [{
+              uri: 'tana://mirror/stats',
+              mimeType: 'text/plain',
+              text: `Error loading mirror stats: ${error instanceof Error ? error.message : String(error)}`
+            }]
+          };
+        }
+      }
+    );
+  }
+
+  /**
+   * Register publish resources for scraped Tana Publish pages
+   */
+  private registerPublishResources(): void {
+    // Publish index resource
+    this.server.resource(
+      'publish-index',
+      'tana://publish/',
+      {
+        name: 'Publish Pages Index',
+        description: 'List of all configured Tana Publish pages',
+        mimeType: 'application/json'
+      },
+      async () => {
+        try {
+          const pages = await this.publishScraper.getPublishPages();
+          return {
+            contents: [{
+              uri: 'tana://publish/',
+              mimeType: 'application/json',
+              text: JSON.stringify({
+                type: 'publish_index',
+                count: pages.length,
+                pages: pages.map(page => ({
+                  slug: page.slug,
+                  title: page.title || page.slug,
+                  url: page.url,
+                  lastScraped: page.lastScraped,
+                  enabled: page.enabled,
+                  resourceUri: `tana://publish/${page.slug}`
+                }))
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          return {
+            contents: [{
+              uri: 'tana://publish/',
+              mimeType: 'text/plain',
+              text: `Error loading publish index: ${error instanceof Error ? error.message : String(error)}`
+            }]
+          };
+        }
+      }
+    );
+
+    // Note: Dynamic publish page resources will be handled by the resource handler
+    // when a specific URI like tana://publish/slug is requested
   }
 
 } 

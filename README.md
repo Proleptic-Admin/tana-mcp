@@ -10,7 +10,29 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that c
 
 This MCP server provides comprehensive access to Tana's Input API with:
 
-### 🎯 **Schema-Aware Smart Capture** (NEW!)
+### 📖 **Read-Like Resources** (NEW!)
+Work within Tana's current POST-only API constraints by providing read-like functionality:
+
+```javascript
+// ✅ Query your created nodes
+query_mirror({ category: "tasks", limit: 10 })
+
+// ✅ Access scraped public content  
+add_publish_page("my-notes", "https://tana.pub/your-public-page")
+get_publish_page("my-notes")
+
+// ✅ Browse via resources
+// tana://mirror/tasks - Local mirror of your tasks
+// tana://publish/my-notes - Scraped public content
+```
+
+**Key Benefits:**
+- **🗄️ Local mirror**: Automatically stores copies of nodes you create for querying
+- **🌐 Public content**: Scrape Tana Publish pages for read-only context
+- **📊 Rich queries**: Filter by category, supertag, date with full JSON responses
+- **🔗 MCP resources**: Browse data via `tana://mirror/*` and `tana://publish/*` URIs
+
+### 🎯 **Schema-Aware Smart Capture**
 Transform your Tana workflow from manual ID management to human-readable, type-safe tools:
 
 ```javascript
@@ -43,7 +65,7 @@ create_task({
 
 **👉 [Get started in 5 minutes](./QUICK-START.md) | [Full schema guide](./SCHEMA-GUIDE.md)**
 
-### 🛠️ Core Tools (15+ available)
+### 🛠️ Core Tools (20+ available)
 - **create_plain_node**: Create basic text nodes with optional supertags
 - **create_reference_node**: Create nodes that reference existing nodes
 - **create_date_node**: Create date nodes with ISO 8601 formatted dates
@@ -62,6 +84,14 @@ create_task({
 - **Input validation**: Automatic validation and normalization of dates, URLs, booleans
 - **Schema management**: `add_schema`, `update_mappings`, `get_schemas`, `get_config` tools
 
+#### 📖 Read-Like Resources (NEW!)
+- **query_mirror**: Query local mirror of nodes created by this server
+- **get_mirror_stats**: Get statistics about local mirror storage
+- **add_publish_page**: Monitor Tana Publish pages for read-only content
+- **remove_publish_page**: Stop monitoring a publish page
+- **scrape_publish_page**: Manually scrape a publish page
+- **get_publish_page**: Get cached content from a scraped publish page
+
 *See [API.md](./API.md) for detailed documentation of all tools with parameters and examples.*
 *See [SCHEMA-GUIDE.md](./SCHEMA-GUIDE.md) for the complete schema-aware functionality guide.*
 
@@ -74,13 +104,18 @@ create_task({
 
 *Prompts provide interactive templates for common use cases. Schema-based prompts adapt to your workspace structure.*
 
-### 📚 Resources (4 available)
+### 📚 Resources (8+ available)
 - **api-docs** (`tana://api/documentation`): Complete Tana Input API reference
 - **node-types** (`tana://reference/node-types`): Detailed guide to all supported node types
 - **examples** (`tana://examples/common-patterns`): Common usage patterns and best practices
 - **server-info** (`tana://info`): Current server status and configuration details
+- **mirror-tasks** (`tana://mirror/tasks`): Local mirror of task/boolean nodes created by this server
+- **mirror-projects** (`tana://mirror/projects`): Local mirror of project nodes created by this server  
+- **mirror-notes** (`tana://mirror/notes`): Local mirror of general notes created by this server
+- **mirror-stats** (`tana://mirror/stats`): Statistics about the local mirror storage
+- **publish-index** (`tana://publish/`): Index of configured Tana Publish pages
 
-*Resources provide built-in documentation accessible through your MCP client.*
+*Resources provide built-in documentation and read-like access to your data within current API constraints.*
 
 ## Quick Reference
 
@@ -200,6 +235,30 @@ Create a person named "John Doe" with email john@company.com
 Use the create-task prompt to plan my week
 ```
 → Interactive conversation for task creation
+
+### 📖 Read-Like Examples (NEW!)
+
+After creating nodes, query your local mirror:
+
+```
+Query my recent tasks created in the last week
+```
+→ Uses `query_mirror` tool to find tasks from local storage
+
+```
+Show me all my project nodes
+```
+→ Uses `query_mirror` with category filter for projects
+
+```
+Add my public Tana page for reference: https://tana.pub/my-knowledge-base
+```
+→ Uses `add_publish_page` to monitor public content for context
+
+```
+Get content from my public knowledge base
+```
+→ Uses `get_publish_page` to retrieve scraped content
 
 ### 📝 Basic Examples
 
